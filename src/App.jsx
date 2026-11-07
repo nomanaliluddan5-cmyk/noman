@@ -112,7 +112,7 @@ export default function App() {
             <Icon name="download" />
           </span>
           <div>
-            <h1>Downloader</h1>
+            <h1>Saim Downloader</h1>
             <p>Queue file links, watch them stream in, save them to your device.</p>
           </div>
         </div>

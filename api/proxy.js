@@ -118,7 +118,7 @@ function requestOnce(url, range, signal) {
   return new Promise((resolve, reject) => {
     const lib = url.protocol === "https:" ? https : http;
     const headers = {
-      "user-agent": "FileDownloader/1.0 (+proxy)",
+      "user-agent": "SaimDownloader/1.0 (+proxy)",
       accept: "*/*",
       "accept-encoding": "identity",
     };

@@ -1,4 +1,4 @@
-# Downloader
+# Saim Downloader
 
 Paste one or many file URLs, watch them download with live progress, and save them to your device.
 
