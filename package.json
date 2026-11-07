@@ -1,0 +1,25 @@
+{
+  "name": "file-downloader",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Paste file URLs, watch them download with live progress, and save them to your device.",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "vite preview --host 0.0.0.0 --port 4173",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "6.2.1",
+    "vite": "8.3.6"
+  }
+}
