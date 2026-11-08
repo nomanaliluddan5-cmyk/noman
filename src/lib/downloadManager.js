@@ -80,6 +80,27 @@ async function readProxyError(res) {
   return `The proxy responded ${res.status}.`;
 }
 
+const PAGE_NOT_FILE =
+  "This URL returned a web page, not a downloadable file. Paste a direct file link (for example one that ends in .mp4 or .pdf). Sites like YouTube, Facebook, and Instagram don't expose a direct file URL.";
+
+export function isHtmlMime(mime) {
+  if (!mime) return false;
+  const type = mime.split(";")[0].trim().toLowerCase();
+  return type === "text/html" || type === "application/xhtml+xml";
+}
+
+export function looksLikeHtml(bytes) {
+  if (!bytes?.byteLength) return false;
+  const head = new TextDecoder().decode(bytes.slice(0, 512)).replace(/^\uFEFF/, "").trimStart().toLowerCase();
+  return (
+    head.startsWith("<!doctype html") ||
+    head.startsWith("<html") ||
+    head.startsWith("<head") ||
+    head.startsWith("<body") ||
+    head.startsWith("<!--")
+  );
+}
+
 export class DownloadManager {
   constructor(settings) {
     this.settings = { mode: "auto", concurrency: 3, autoSave: true, ...settings };
@@ -216,10 +237,25 @@ export class DownloadManager {
       const mime =
         (route === "proxy" ? res.headers.get("x-upstream-content-type") : res.headers.get("content-type")) ||
         "application/octet-stream";
+      const normalizedMime = mime.split(";")[0].trim();
+      // CORS-open CDNs sometimes return an HTML error/watch page with HTTP 200. In Auto mode
+      // that still means "try the proxy"; only fail once the proxy (or Direct/Proxy mode) agrees.
+      if (isHtmlMime(normalizedMime)) {
+        try {
+          res.body?.cancel?.();
+        } catch {
+          /* ignore cancel failures */
+        }
+        if (route === "direct" && mode === "auto") {
+          route = "proxy";
+          continue;
+        }
+        return this.fail(id, PAGE_NOT_FILE);
+      }
       this.update(id, {
         status: "downloading",
         total: totalFromResponse(res, startAt),
-        mime: mime.split(";")[0].trim(),
+        mime: normalizedMime,
         name: sanitizeFilename(disposition || this.get(id).name),
       });
       rt.samples = [{ t: performance.now(), bytes: startAt }];
@@ -229,6 +265,15 @@ export class DownloadManager {
         await this.consume(id, res.body, rt);
       } catch (err) {
         if (controller.signal.aborted) return this.handleAbort(id, controller.signal.reason);
+        if (err?.code === "HTML_PAGE") {
+          if (route === "direct" && mode === "auto") {
+            rt.chunks = [];
+            this.update(id, { received: 0, total: null });
+            route = "proxy";
+            continue;
+          }
+          return this.fail(id, PAGE_NOT_FILE);
+        }
         return this.fail(id, "The connection dropped mid-download. Retry to continue from where it stopped.");
       }
       return this.complete(id);
@@ -238,9 +283,23 @@ export class DownloadManager {
   async consume(id, body, rt) {
     if (!body) return;
     const reader = body.getReader();
+    let inspected = rt.chunks.some((c) => c?.byteLength);
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
+      if (!inspected && value?.byteLength) {
+        inspected = true;
+        if (looksLikeHtml(value)) {
+          try {
+            await reader.cancel();
+          } catch {
+            /* ignore */
+          }
+          const err = new Error("HTML_PAGE");
+          err.code = "HTML_PAGE";
+          throw err;
+        }
+      }
       rt.chunks.push(value);
       const current = this.get(id);
       const received = current.received + value.byteLength;
@@ -260,6 +319,22 @@ export class DownloadManager {
     const rt = this.runtime.get(id);
     const item = this.get(id);
     const blob = new Blob(rt.chunks, { type: item.mime || "application/octet-stream" });
+    const expected = item.total;
+    if (blob.size === 0) {
+      rt.chunks = [];
+      rt.controller = null;
+      return this.fail(id, "The download finished with an empty file. The link may not point at a real file.");
+    }
+    // Only treat a short body as truncated when Content-Length promised more bytes.
+    if (Number.isFinite(expected) && expected > 0 && blob.size < expected) {
+      // Keep chunks so Retry can Range-resume from item.received.
+      rt.controller = null;
+      this.update(id, { received: blob.size, total: expected, speed: 0 });
+      return this.fail(
+        id,
+        `The download stopped early (${blob.size.toLocaleString()} of ${expected.toLocaleString()} bytes). Retry to continue from where it stopped.`,
+      );
+    }
     rt.chunks = [];
     rt.controller = null;
     this.update(id, {
