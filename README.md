@@ -1,6 +1,8 @@
 # Saim Downloader
 
-Paste one or many file URLs, watch them download with live progress, and save them to your device.
+Paste one or many **direct file URLs** (links that point at the file itself, often ending in `.mp4`, `.pdf`, `.zip`, …), watch them download with live progress, and save them to your device.
+
+Watch/share pages from YouTube, Facebook, Instagram, and similar sites are HTML pages, not file URLs — this app will refuse them instead of saving a broken file that won't open in VLC.
 
 - Per-file progress: bytes, percent, speed, and time left
 - Pause/resume (resumes with HTTP Range requests when the server supports them), cancel, retry, remove

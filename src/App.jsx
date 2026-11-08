@@ -6,10 +6,10 @@ import { Icon } from "./Icon.jsx";
 const SETTINGS_KEY = "downloader:settings";
 
 const SAMPLE_URLS = [
+  "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4",
   "https://upload.wikimedia.org/wikipedia/commons/4/47/PNG_transparency_demonstration_1.png",
   "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
   "https://speed.cloudflare.com/__down?bytes=25000000",
-  "https://proof.ovh.net/files/10Mb.dat",
 ].join("\n");
 
 const MODES = [
@@ -113,7 +113,7 @@ export default function App() {
           </span>
           <div>
             <h1>Saim Downloader</h1>
-            <p>Queue file links, watch them stream in, save them to your device.</p>
+            <p>Queue direct file links, watch them stream in, save them to your device.</p>
           </div>
         </div>
         <div className="top-stats" aria-live="polite">
@@ -140,7 +140,7 @@ export default function App() {
               value={text}
               onChange={(e) => setText(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={"https://example.com/report.pdf\nhttps://example.com/photo.jpg"}
+              placeholder={"https://example.com/video.mp4\nhttps://example.com/report.pdf"}
               spellCheck={false}
               rows={6}
               aria-invalid={invalid.length > 0}
@@ -166,7 +166,10 @@ export default function App() {
             )}
             <div className="composer-foot">
               <span className="muted small">
-                {lineCount ? `${lineCount} link${lineCount === 1 ? "" : "s"}` : "One link per line"} · Ctrl/⌘ + Enter
+                {lineCount
+                  ? `${lineCount} link${lineCount === 1 ? "" : "s"}`
+                  : "Direct file URLs only (not YouTube/Facebook pages)"}{" "}
+                · Ctrl/⌘ + Enter
               </span>
               <button type="submit" className="btn primary" disabled={!text.trim()}>
                 <Icon name="plus" /> Add to queue
@@ -255,7 +258,10 @@ export default function App() {
                 <Icon name="inbox" />
               </div>
               <p>Your queue is empty.</p>
-              <p className="muted small">Paste links above, or try the sample links to see it in action.</p>
+              <p className="muted small">
+                Paste a direct file URL (one that ends in .mp4, .pdf, .zip, …), or try the sample links. Watch-page links
+                from YouTube and similar sites will not play in VLC.
+              </p>
             </div>
           ) : (
             <ul className="items">
